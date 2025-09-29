@@ -231,7 +231,7 @@
                         <span id="cart-total">R$ 0,00</span>
                     </div>
                 </div>
-                <button id="checkout-button" onclick="openPaymentModal()" class="w-full btn-primary font-bold py-3 rounded-lg mt-4 flex items-center justify-center gap-2" disabled>
+                <button id="checkout-button" class="w-full btn-primary font-bold py-3 rounded-lg mt-4 flex items-center justify-center gap-2" disabled>
                     <span class="checkout-button-idle flex items-center justify-center gap-2">
                         <i data-lucide="check-circle" class="w-5 h-5"></i>
                         <span>Finalizar Compra</span>
@@ -546,7 +546,7 @@
             currentPaymentMethod: null,
         };
 
-        // --- FUNÇÕES DE RENDERIZAÇÃO (sem alteração de lógica, apenas de onde vêm os dados) ---
+        // --- FUNÇÕES DE RENDERIZAÇÃO ---
 
         function renderAll() {
             renderCategories();
@@ -577,7 +577,7 @@
             filteredProducts.forEach(product => {
                 const isOutOfStock = product.stock <= 0;
                 const productCard = document.createElement('div');
-                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-shadow hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''}`;
+                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-shadow hover:shadow-md relative overflow-hidden ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''}`;
                 
                 let imageHTML = `<img src="${product.image || 'https://placehold.co/150x150/cccccc/969696?text=Sem+Imagem'}" alt="[Imagem de ${product.name}]" class="w-full h-24 object-cover rounded-md mb-2" onerror="this.onerror=null;this.src='https://placehold.co/150x150/cccccc/969696?text=Sem+Imagem';">`;
 
@@ -1287,6 +1287,9 @@
             lucide.createIcons();
             showToast('Conectando ao banco de dados...');
             initializeFirebaseApp();
+
+            document.getElementById('checkout-button').addEventListener('click', openPaymentModal);
+
             document.getElementById('confirm-action-btn').addEventListener('click', () => {
                 if (confirmActionCallback) confirmActionCallback();
                 hideConfirmationModal();
