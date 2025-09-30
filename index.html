@@ -169,6 +169,38 @@
             -webkit-tap-highlight-color: rgba(0,0,0,0);
             touch-action: manipulation;
         }
+
+        /* Animação para a borda de seleção */
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.7); }
+            100% { box-shadow: 0 0 0 6px rgba(var(--color-primary), 0); }
+        }
+        .animate-pulse-border {
+            animation: pulse-border 0.3s ease-out;
+        }
+        
+        /* Estilos para o Tour Guiado */
+        .tour-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .tour-highlight {
+            position: relative;
+            z-index: 1001;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+        }
+        .tour-tooltip {
+            position: absolute;
+            z-index: 1002;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            width: 300px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -193,7 +225,8 @@
                         <h1 id="app-title" class="text-2xl font-bold text-gray-800">Vendas Fácil</h1>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div id="header-icons" class="flex items-center gap-2">
+                    <button onclick="startTour()" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="help-circle"></i></button>
                     <button onclick="openTab('vendas')" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="line-chart"></i></button>
                     <button onclick="openTab('estoque')" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="boxes"></i></button>
                     <button onclick="openSettingsModal()" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="settings"></i></button>
@@ -601,7 +634,7 @@
             </div>
              <p id="current-plan-info" class="text-center text-gray-600 mt-6 hidden"></p>
              <div class="text-center mt-4">
-                <button id="btn-reset-subscription" class="btn-danger text-sm px-4 py-2 rounded-lg flex items-center justify-center">
+                <button id="btn-reset-subscription" class="btn-danger text-sm px-4 py-2 rounded-lg">
                     <i data-lucide="refresh-cw" class="inline w-4 h-4 mr-1"></i> Resetar Assinatura (para Testes)
                 </button>
             </div>
@@ -652,6 +685,23 @@
         </div>
     </div>
 
+    <!-- Tour Guiado -->
+    <div id="tour-container" class="hidden">
+        <div id="tour-overlay" class="tour-overlay"></div>
+        <div id="tour-tooltip" class="tour-tooltip">
+            <h3 id="tour-title" class="font-bold text-lg mb-2"></h3>
+            <p id="tour-content" class="text-sm text-gray-600"></p>
+            <div class="flex justify-between items-center mt-4">
+                <span id="tour-step" class="text-xs text-gray-500"></span>
+                <div class="flex gap-2">
+                    <button id="tour-prev" class="text-sm px-3 py-1 bg-gray-200 rounded-md">Anterior</button>
+                    <button id="tour-next" class="text-sm px-3 py-1 btn-primary rounded-md">Próximo</button>
+                    <button id="tour-finish" class="hidden text-sm px-3 py-1 btn-accent rounded-md">Finalizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- ESTADO DA APLICAÇÃO ---
         let userState = {
@@ -673,7 +723,6 @@
             currentPaymentMethod: null,
             selectedProductId: null,
         };
-        let isFinalizing = false; // Flag para o botão de finalizar compra
 
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
 
@@ -710,9 +759,14 @@
                 const textColorClass = getTextColorForBackground(cardColor);
                 const isSelected = product.id === state.selectedProductId;
                 
-                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-shadow hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
+                let selectionClass = '';
+                if (isSelected) {
+                    selectionClass = 'animate-pulse-border';
+                }
+                
+                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${selectionClass}`;
                 productCard.style.backgroundColor = cardColor;
-                productCard.style.borderColor = isSelected ? 'rgb(var(--color-primary))' : (cardColor === '#FFFFFF' ? '#e5e7eb' : cardColor);
+                productCard.style.borderColor = cardColor === '#FFFFFF' ? '#e5e7eb' : cardColor;
 
 
                 let imageHTML = `<div class="h-24 w-full overflow-hidden rounded-md mb-2">
@@ -1612,7 +1666,107 @@
                 }, 300);
             }, 3000);
         }
+        
+        // --- LÓGICA DO TOUR ---
+        let currentTourStep = 0;
+        const tourSteps = [
+            {
+                element: '#product-list',
+                title: 'Vitrine de Produtos',
+                content: 'Aqui você vê seus produtos. Clique em um para adicionar ao carrinho de compras.',
+                position: 'bottom-start'
+            },
+            {
+                element: '#category-filters',
+                title: 'Filtros de Categoria',
+                content: 'Use os filtros para navegar rapidamente entre as categorias de produtos que você cadastrou.',
+                position: 'bottom-start'
+            },
+            {
+                element: '#cart-items',
+                title: 'Carrinho de Compras',
+                content: 'Seu pedido atual aparece aqui. Você pode ajustar as quantidades de cada item antes de finalizar.',
+                position: 'top'
+            },
+            {
+                element: '#btn-finalizar',
+                title: 'Finalizar Compra',
+                content: 'Quando o pedido estiver pronto, clique aqui para ir para a tela de pagamento.',
+                position: 'top'
+            },
+            {
+                element: '#header-icons',
+                title: 'Menu Principal',
+                content: 'Use estes ícones para ver o histórico de vendas, gerenciar o estoque e acessar as configurações da sua loja.',
+                position: 'bottom-end'
+            }
+        ];
 
+        function startTour() {
+            document.getElementById('tour-container').classList.remove('hidden');
+            currentTourStep = 0;
+            showTourStep();
+        }
+
+        function endTour() {
+            const currentElement = document.querySelector(tourSteps[currentTourStep].element);
+            if (currentElement) currentElement.classList.remove('tour-highlight');
+            document.getElementById('tour-container').classList.add('hidden');
+        }
+
+        function showTourStep() {
+            // Limpa o destaque anterior
+            document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+
+            const step = tourSteps[currentTourStep];
+            const targetElement = document.querySelector(step.element);
+            if (!targetElement) {
+                console.warn(`Elemento do tour não encontrado: ${step.element}`);
+                endTour();
+                return;
+            }
+
+            targetElement.classList.add('tour-highlight');
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            const tooltip = document.getElementById('tour-tooltip');
+            document.getElementById('tour-title').textContent = step.title;
+            document.getElementById('tour-content').textContent = step.content;
+            document.getElementById('tour-step').textContent = `${currentTourStep + 1} de ${tourSteps.length}`;
+
+            // Posiciona o tooltip
+            const targetRect = targetElement.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            let top, left;
+            switch(step.position) {
+                case 'bottom-start':
+                    top = targetRect.bottom + 10;
+                    left = targetRect.left;
+                    break;
+                case 'bottom-end':
+                    top = targetRect.bottom + 10;
+                    left = targetRect.right - tooltipRect.width;
+                    break;
+                case 'top':
+                    top = targetRect.top - tooltipRect.height - 10;
+                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+                    break;
+                default: // bottom
+                    top = targetRect.bottom + 10;
+                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+            }
+            
+            tooltip.style.top = `${top}px`;
+            tooltip.style.left = `${Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10))}px`;
+
+
+            // Atualiza botões
+            document.getElementById('tour-prev').style.visibility = currentTourStep === 0 ? 'hidden' : 'visible';
+            document.getElementById('tour-next').style.display = currentTourStep === tourSteps.length - 1 ? 'none' : 'block';
+            document.getElementById('tour-finish').style.display = currentTourStep === tourSteps.length - 1 ? 'block' : 'none';
+        }
+        
         // --- INICIALIZAÇÃO COM FIREBASE ---
         function initializeFirebaseApp() {
             const { auth, onAuthStateChanged, signInAnonymously } = window.firebase;
@@ -1696,38 +1850,65 @@
                 hideConfirmationModal();
             });
             document.getElementById('confirm-cancel-btn').addEventListener('click', hideConfirmationModal);
-
-            // --- INICIALIZAÇÃO DO BOTÃO DE RESET ---
-            document.getElementById('btn-reset-subscription').addEventListener('click', resetSubscriptionForTesting);
-
-            // --- INICIALIZAÇÃO DO BOTÃO FINALIZAR COMPRA ---
-            (() => {
-              const btn = document.getElementById('btn-finalizar');
-              if (!btn) return;
             
-              let locked = false;
-              const onTap = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-
-                if (btn.disabled) {
-                    showToast('Seu carrinho está vazio. Adicione produtos para continuar.', 'warning');
-                    return;
+            // --- EVENTOS DO TOUR ---
+            document.getElementById('tour-overlay').addEventListener('click', endTour);
+            document.getElementById('tour-next').addEventListener('click', () => {
+                if (currentTourStep < tourSteps.length - 1) {
+                    currentTourStep++;
+                    showTourStep();
                 }
+            });
+            document.getElementById('tour-prev').addEventListener('click', () => {
+                 if (currentTourStep > 0) {
+                    currentTourStep--;
+                    showTourStep();
+                }
+            });
+            document.getElementById('tour-finish').addEventListener('click', endTour);
 
-                if (locked) return;
-                locked = true; 
-                setTimeout(() => locked = false, 600);
+
+            // --- INICIALIZAÇÃO DOS BOTÕES COM EVENTOS DE TOQUE/CLIQUE ---
             
-                if (typeof window.abrirPagamento === 'function') {
-                  window.abrirPagamento();
-                }
-              };
+            // Botão de Resetar Assinatura
+            const resetBtn = document.getElementById('btn-reset-subscription');
+            if (resetBtn) {
+                const handleReset = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    resetSubscriptionForTesting();
+                };
+                ['pointerup', 'touchend', 'click'].forEach(evt => {
+                    resetBtn.addEventListener(evt, handleReset, { passive: false });
+                });
+            }
+
+            // Botão Finalizar Compra
+            const btnFinalizar = document.getElementById('btn-finalizar');
+            if (btnFinalizar) {
+                let locked = false;
+                const onTap = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (btnFinalizar.disabled) {
+                        showToast('Seu carrinho está vazio. Adicione produtos para continuar.', 'warning');
+                        return;
+                    }
+
+                    if (locked) return;
+                    locked = true; 
+                    setTimeout(() => locked = false, 600);
+            
+                    if (typeof window.abrirPagamento === 'function') {
+                        window.abrirPagamento();
+                    }
+                };
             
               ['pointerup', 'touchend', 'click'].forEach(evt => {
-                btn.addEventListener(evt, onTap, { passive: false });
+                btnFinalizar.addEventListener(evt, onTap, { passive: false });
               });
-            })();
+            }
             
             // --- SINCRONIZAR COLOR PICKER COM INPUT TEXT ---
             const colorPicker = document.getElementById('product-color-picker');
