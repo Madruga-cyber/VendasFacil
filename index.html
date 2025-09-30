@@ -587,7 +587,7 @@
                 <!-- Plano Pro -->
                 <div class="border rounded-lg p-6 flex flex-col">
                     <h3 class="text-xl font-bold text-primary">Pro</h3>
-                    <p class="text-3xl font-bold my-4">R$ 59<span class="text-sm font-normal text-gray-500">/mês</span></p>
+                    <p class="text-3xl font-bold my-4">R$ 100<span class="text-sm font-normal text-gray-500">/mês</span></p>
                     <ul class="space-y-2 text-gray-600 mb-6 flex-grow">
                         <li class="flex items-center gap-2"><i data-lucide="check" class="text-green-500"></i>Produtos ilimitados</li>
                         <li class="flex items-center gap-2"><i data-lucide="check" class="text-green-500"></i>Categorias ilimitadas</li>
@@ -612,9 +612,8 @@
                     <p class="font-semibold text-blue-800" id="stripe-plan-name"></p>
                     <p class="text-2xl font-bold text-blue-900" id="stripe-plan-price"></p>
                 </div>
-                 <p class="text-xs text-gray-500 mt-4 text-center"><strong>Aviso:</strong> Esta é uma simulação. Não insira dados de cartão reais. Um backend é necessário para a integração real com o Stripe.</p>
                 
-                <div class="mt-4 space-y-3">
+                <div class="mt-6 space-y-3">
                      <div>
                         <label for="stripe-card-number" class="block text-sm font-medium text-gray-700">Número do Cartão</label>
                         <input type="text" id="stripe-card-number" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="4242 4242 4242 4242">
@@ -666,6 +665,7 @@
             },
             activeCategoryFilter: 'all',
             currentPaymentMethod: null,
+            selectedProductId: null,
         };
 
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
@@ -703,7 +703,7 @@
                 const textColorClass = getTextColorForBackground(cardColor);
                 const isSelected = product.id === state.selectedProductId;
                 
-                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-all hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
+                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-shadow hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
                 productCard.style.backgroundColor = cardColor;
                 productCard.style.borderColor = isSelected ? 'rgb(var(--color-primary))' : (cardColor === '#FFFFFF' ? '#e5e7eb' : cardColor);
 
@@ -1474,7 +1474,7 @@
             } else {
                 selectedPlan = planId;
                 document.getElementById('stripe-plan-name').textContent = `Plano ${planId.charAt(0).toUpperCase() + planId.slice(1)}`;
-                document.getElementById('stripe-plan-price').textContent = planId === 'basico' ? 'R$ 29/mês' : 'R$ 59/mês';
+                document.getElementById('stripe-plan-price').textContent = planId === 'basico' ? 'R$ 29/mês' : 'R$ 100/mês';
                 document.getElementById('stripe-checkout-modal').classList.remove('hidden');
             }
         }
