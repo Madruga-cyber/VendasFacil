@@ -601,7 +601,7 @@
             </div>
              <p id="current-plan-info" class="text-center text-gray-600 mt-6 hidden"></p>
              <div class="text-center mt-4">
-                <button onclick="resetSubscriptionForTesting()" class="btn-danger text-sm px-4 py-2 rounded-lg">
+                <button id="btn-reset-subscription" class="btn-danger text-sm px-4 py-2 rounded-lg flex items-center justify-center">
                     <i data-lucide="refresh-cw" class="inline w-4 h-4 mr-1"></i> Resetar Assinatura (para Testes)
                 </button>
             </div>
@@ -710,7 +710,7 @@
                 const textColorClass = getTextColorForBackground(cardColor);
                 const isSelected = product.id === state.selectedProductId;
                 
-                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
+                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-shadow hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
                 productCard.style.backgroundColor = cardColor;
                 productCard.style.borderColor = isSelected ? 'rgb(var(--color-primary))' : (cardColor === '#FFFFFF' ? '#e5e7eb' : cardColor);
 
@@ -1696,6 +1696,9 @@
                 hideConfirmationModal();
             });
             document.getElementById('confirm-cancel-btn').addEventListener('click', hideConfirmationModal);
+
+            // --- INICIALIZAÇÃO DO BOTÃO DE RESET ---
+            document.getElementById('btn-reset-subscription').addEventListener('click', resetSubscriptionForTesting);
 
             // --- INICIALIZAÇÃO DO BOTÃO FINALIZAR COMPRA ---
             (() => {
