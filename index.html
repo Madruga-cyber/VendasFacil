@@ -165,6 +165,14 @@
         .jiggle-animation {
             animation: jiggle 0.4s ease-in-out;
         }
+        
+        #btn-finalizar {
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            touch-action: manipulation;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -239,7 +247,7 @@
                         <span id="cart-total">R$ 0,00</span>
                     </div>
                 </div>
-                <button id="checkout-button" class="w-full btn-primary font-bold py-3 rounded-lg mt-4 flex items-center justify-center gap-2" disabled>
+                <button id="btn-finalizar" type="button" class="w-full btn-primary font-bold py-3 rounded-lg mt-4 flex items-center justify-center gap-2" disabled>
                     <span class="checkout-button-idle flex items-center justify-center gap-2">
                         <i data-lucide="check-circle" class="w-5 h-5"></i>
                         <span>Finalizar Compra</span>
@@ -742,7 +750,7 @@
         }
         
         function updateCheckoutButton() {
-            const checkoutButton = document.getElementById('checkout-button');
+            const checkoutButton = document.getElementById('btn-finalizar');
             checkoutButton.disabled = state.cart.length === 0;
             checkoutButton.classList.toggle('opacity-50', checkoutButton.disabled);
             checkoutButton.classList.toggle('cursor-not-allowed', checkoutButton.disabled);
@@ -848,6 +856,10 @@
                 const salesCollection = collection(db, "salesHistory");
                 try {
                     const snapshot = await getDocs(salesCollection);
+                    if (snapshot.empty) {
+                        showToast("O histórico de vendas já está vazio.");
+                        return;
+                    }
                     const batch = writeBatch(db);
                     snapshot.docs.forEach(doc => {
                         batch.delete(doc.ref);
@@ -1112,15 +1124,36 @@
             document.getElementById('management-modal').classList.add('hidden');
         }
         
-        function openPaymentModal() {
-            if (state.cart.length === 0) return;
-            const total = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) * (1 + state.settings.taxRate / 100);
-            document.getElementById('payment-total').textContent = formatCurrency(total);
-            document.getElementById('cash-received').value = '';
-            document.getElementById('cash-change').textContent = 'R$ 0,00';
-            document.getElementById('payment-modal').classList.remove('hidden');
-        }
+        function setCheckoutButtonLoading(isLoading) {
+            const button = document.getElementById('btn-finalizar');
+            const idleContent = button.querySelector('.checkout-button-idle');
+            const loadingContent = button.querySelector('.checkout-button-loading');
 
+            if (isLoading) {
+                button.disabled = true;
+                idleContent.classList.add('hidden');
+                loadingContent.classList.remove('hidden');
+            } else {
+                updateCheckoutButton(); 
+                idleContent.classList.remove('hidden');
+                loadingContent.classList.add('hidden');
+            }
+        }
+        
+        window.abrirPagamento = function() {
+            setCheckoutButtonLoading(true);
+            try {
+                const total = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) * (1 + state.settings.taxRate / 100);
+                document.getElementById('payment-total').textContent = formatCurrency(total);
+                document.getElementById('cash-received').value = '';
+                document.getElementById('cash-change').textContent = 'R$ 0,00';
+                document.getElementById('payment-modal').classList.remove('hidden');
+            } catch (error) {
+                console.error("Erro ao abrir modal de pagamento:", error);
+                showToast("Ocorreu um erro. Tente novamente.");
+                closePaymentModal();
+            }
+        }
 
         function closePaymentModal() {
             document.getElementById('payment-modal').classList.add('hidden');
@@ -1130,6 +1163,7 @@
                 document.getElementById(`${method}-details`).style.display = 'none';
             });
             ['card-name', 'card-number', 'card-expiry', 'card-cvv'].forEach(id => document.getElementById(id).value = '');
+            setCheckoutButtonLoading(false);
         }
 
         function openTab(tabName) {
@@ -1346,8 +1380,6 @@
             showToast('Conectando ao banco de dados...');
             initializeFirebaseApp();
 
-            document.getElementById('checkout-button').addEventListener('click', openPaymentModal);
-
             document.getElementById('confirm-action-btn').addEventListener('click', () => {
                 if (confirmActionCallback) confirmActionCallback();
                 hideConfirmationModal();
@@ -1356,6 +1388,31 @@
         });
 
     </script>
+    
+    <script>
+    (() => {
+      const btn = document.getElementById('btn-finalizar');
+      if (!btn) return;
+    
+      let locked = false;
+      const onTap = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (locked || btn.disabled) return;
+        locked = true; 
+        setTimeout(() => locked = false, 600);
+    
+        if (typeof window.abrirPagamento === 'function') {
+          window.abrirPagamento();
+        }
+      };
+    
+      ['pointerup', 'touchend', 'click'].forEach(evt => {
+        btn.addEventListener(evt, onTap, { passive: false });
+      });
+    })();
+    </script>
+
 </body>
 </html>
 
