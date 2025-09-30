@@ -574,7 +574,7 @@
                         <span class="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">MAIS POPULAR</span>
                     </div>
                     <h3 class="text-xl font-bold text-primary">Básico</h3>
-                    <p class="text-3xl font-bold my-4">R$ 29<span class="text-sm font-normal text-gray-500">/mês</span></p>
+                    <p class="text-3xl font-bold my-4">R$ 9.99<span class="text-sm font-normal text-gray-500">/mês</span></p>
                     <ul class="space-y-2 text-gray-600 mb-6 flex-grow">
                         <li class="flex items-center gap-2"><i data-lucide="check" class="text-green-500"></i>Até 50 produtos</li>
                         <li class="flex items-center gap-2"><i data-lucide="check" class="text-green-500"></i>Até 10 categorias</li>
@@ -587,7 +587,7 @@
                 <!-- Plano Pro -->
                 <div class="border rounded-lg p-6 flex flex-col">
                     <h3 class="text-xl font-bold text-primary">Pro</h3>
-                    <p class="text-3xl font-bold my-4">R$ 100<span class="text-sm font-normal text-gray-500">/mês</span></p>
+                    <p class="text-3xl font-bold my-4">R$ 20<span class="text-sm font-normal text-gray-500">/mês</span></p>
                     <ul class="space-y-2 text-gray-600 mb-6 flex-grow">
                         <li class="flex items-center gap-2"><i data-lucide="check" class="text-green-500"></i>Produtos ilimitados</li>
                         <li class="flex items-center gap-2"><i data-lucide="check" class="text-green-500"></i>Categorias ilimitadas</li>
@@ -1474,7 +1474,7 @@
             } else {
                 selectedPlan = planId;
                 document.getElementById('stripe-plan-name').textContent = `Plano ${planId.charAt(0).toUpperCase() + planId.slice(1)}`;
-                document.getElementById('stripe-plan-price').textContent = planId === 'basico' ? 'R$ 29/mês' : 'R$ 100/mês';
+                document.getElementById('stripe-plan-price').textContent = planId === 'basico' ? 'R$ 9.99/mês' : 'R$ 20/mês';
                 document.getElementById('stripe-checkout-modal').classList.remove('hidden');
             }
         }
