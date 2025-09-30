@@ -550,7 +550,8 @@
     
      <!-- Modal de Assinatura -->
     <div id="subscription-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[90] p-4 hidden">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl p-8 transform transition-all overflow-y-auto max-h-[90vh]">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl p-8 transform transition-all overflow-y-auto max-h-[90vh] relative">
+            <button onclick="closeSubscriptionModal()" class="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-200 z-10"><i data-lucide="x"></i></button>
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Escolha o plano ideal para você</h2>
             <p class="text-center text-gray-600 mb-8">Comece com um teste gratuito de 14 dias nos planos pagos.</p>
 
@@ -599,6 +600,11 @@
                 </div>
             </div>
              <p id="current-plan-info" class="text-center text-gray-600 mt-6 hidden"></p>
+             <div class="text-center mt-4">
+                <button onclick="resetSubscriptionForTesting()" class="btn-danger text-sm px-4 py-2 rounded-lg">
+                    <i data-lucide="refresh-cw" class="inline w-4 h-4 mr-1"></i> Resetar Assinatura (para Testes)
+                </button>
+            </div>
         </div>
     </div>
     
@@ -667,6 +673,7 @@
             currentPaymentMethod: null,
             selectedProductId: null,
         };
+        let isFinalizing = false; // Flag para o botão de finalizar compra
 
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
 
@@ -703,7 +710,7 @@
                 const textColorClass = getTextColorForBackground(cardColor);
                 const isSelected = product.id === state.selectedProductId;
                 
-                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer transition-shadow hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
+                productCard.className = `border rounded-lg p-3 flex flex-col text-center cursor-pointer hover:shadow-md relative ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''} ${textColorClass} ${isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''}`;
                 productCard.style.backgroundColor = cardColor;
                 productCard.style.borderColor = isSelected ? 'rgb(var(--color-primary))' : (cardColor === '#FFFFFF' ? '#e5e7eb' : cardColor);
 
@@ -1453,6 +1460,7 @@
         }
         
         function openSubscriptionModal() {
+            closeSettingsModal();
             const modal = document.getElementById('subscription-modal');
             modal.classList.remove('hidden');
             const info = document.getElementById('current-plan-info');
@@ -1461,6 +1469,14 @@
                 info.classList.remove('hidden');
             } else {
                 info.classList.add('hidden');
+            }
+        }
+
+        function closeSubscriptionModal() {
+            if (userState.subscription) {
+                 document.getElementById('subscription-modal').classList.add('hidden');
+            } else {
+                showToast("Por favor, escolha um plano para continuar.", "warning");
             }
         }
         
@@ -1505,6 +1521,21 @@
         async function updateUserSubscription(subscriptionData) {
             userState.subscription = subscriptionData;
             await window.firebase.setDoc(window.firebase.doc(window.firebase.db, "users", userState.userId), { subscription: subscriptionData });
+        }
+        
+        async function resetSubscriptionForTesting() {
+            showConfirmationModal('Isso apagará sua assinatura atual e reiniciará o app para a tela de planos. Deseja continuar?', async () => {
+                try {
+                    await window.firebase.deleteDoc(window.firebase.doc(window.firebase.db, "users", userState.userId));
+                    showToast('Assinatura resetada. Recarregando...');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } catch (e) {
+                    console.error("Erro ao resetar assinatura: ", e);
+                    showToast('Erro ao resetar a assinatura.', 'error');
+                }
+            });
         }
 
         // --- FUNÇÕES DA API GEMINI ---
