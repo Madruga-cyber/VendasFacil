@@ -169,6 +169,20 @@
             -webkit-tap-highlight-color: rgba(0,0,0,0);
             touch-action: manipulation;
         }
+
+        /* Animação para a borda de seleção */
+        @keyframes pulse-border {
+            0% {
+                box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.7);
+            }
+            100% {
+                box-shadow: 0 0 0 8px rgba(var(--color-primary), 0);
+            }
+        }
+        .animate-pulse-border {
+            animation: pulse-border 0.4s ease-out;
+            border-color: rgb(var(--color-primary)) !important;
+        }
         
         /* Estilos para o Tour Guiado */
         .tour-overlay {
@@ -217,10 +231,10 @@
                     </div>
                 </div>
                 <div id="header-icons" class="flex items-center gap-2">
-                    <button onclick="startTour()" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="help-circle"></i></button>
-                    <button onclick="openTab('vendas')" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="line-chart"></i></button>
-                    <button onclick="openTab('estoque')" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="boxes"></i></button>
-                    <button onclick="openSettingsModal()" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="settings"></i></button>
+                    <button onclick="startMainTour()" title="Ajuda / Tour" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="help-circle"></i></button>
+                    <button onclick="openTab('vendas')" title="Histórico de Vendas" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="line-chart"></i></button>
+                    <button onclick="openTab('estoque')" title="Controle de Estoque" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="boxes"></i></button>
+                    <button onclick="openSettingsModal()" title="Configurações" class="p-2 text-gray-600 hover:text-primary rounded-full hover:bg-blue-100 transition-colors"><i data-lucide="settings"></i></button>
                 </div>
             </header>
 
@@ -296,7 +310,15 @@
                         <h3 class="text-xl font-semibold">Produtos</h3>
                         <button onclick="openProductModal()" class="btn-secondary text-sm px-4 py-2 rounded-lg flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i>Novo</button>
                     </div>
-                    <div id="product-management-list" class="h-80 overflow-y-auto pr-2 space-y-2"></div>
+                    <div id="product-management-list" class="h-80 overflow-y-auto pr-2 space-y-2">
+                         <div id="add-product-tour-prompt" class="hidden text-center p-8 text-gray-500">
+                            <p class="mb-4">Parece que você ainda não tem produtos cadastrados.</p>
+                            <button onclick="startAddProductTour()" class="btn-primary px-4 py-2 rounded-lg flex items-center justify-center mx-auto">
+                                <i data-lucide="play-circle" class="inline w-4 h-4 mr-1"></i>
+                                Mostrar como adicionar
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <!-- Seção de Categorias -->
                 <div>
@@ -579,9 +601,9 @@
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Escolha o plano ideal para você</h2>
             <p class="text-center text-gray-600 mb-8">Comece com um teste gratuito de 14 dias nos planos pagos.</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div id="plan-container" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Plano Gratuito -->
-                <div class="border rounded-lg p-6 flex flex-col">
+                <div data-plan-id="gratuito" class="border rounded-lg p-6 flex flex-col">
                     <h3 class="text-xl font-bold text-primary">Gratuito</h3>
                     <p class="text-3xl font-bold my-4">R$ 0<span class="text-sm font-normal text-gray-500">/mês</span></p>
                     <ul class="space-y-2 text-gray-600 mb-6 flex-grow">
@@ -594,7 +616,7 @@
                     <button onclick="selectPlan('gratuito')" class="w-full btn-secondary font-bold py-2 rounded-lg mt-4">Começar Agora</button>
                 </div>
                 <!-- Plano Básico -->
-                <div class="border-2 border-primary rounded-lg p-6 flex flex-col relative">
+                <div data-plan-id="basico" class="border rounded-lg p-6 flex flex-col relative">
                     <div class="absolute top-0 -translate-y-1/2 w-full flex justify-center">
                         <span class="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">MAIS POPULAR</span>
                     </div>
@@ -610,7 +632,7 @@
                     <button onclick="selectPlan('basico')" class="w-full btn-primary font-bold py-2 rounded-lg mt-4">Iniciar Teste Gratuito</button>
                 </div>
                 <!-- Plano Pro -->
-                <div class="border rounded-lg p-6 flex flex-col">
+                <div data-plan-id="pro" class="border rounded-lg p-6 flex flex-col">
                     <h3 class="text-xl font-bold text-primary">Pro</h3>
                     <p class="text-3xl font-bold my-4">R$ 49.99<span class="text-sm font-normal text-gray-500">/mês</span></p>
                     <ul class="space-y-2 text-gray-600 mb-6 flex-grow">
@@ -714,7 +736,6 @@
             currentPaymentMethod: null,
             selectedProductId: null,
         };
-        let isFinalizing = false; // Flag para o botão de finalizar compra
 
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
 
@@ -830,20 +851,30 @@
 
         function renderManagementLists() {
             const productManagementList = document.getElementById('product-management-list');
-            productManagementList.innerHTML = '';
+            const tourPrompt = document.getElementById('add-product-tour-prompt');
+            productManagementList.innerHTML = ''; // Limpa antes de adicionar
+            
+            if (state.products.length === 0) {
+                tourPrompt.classList.remove('hidden');
+                productManagementList.appendChild(tourPrompt);
+            } else {
+                tourPrompt.classList.add('hidden');
+            }
+
             state.products.forEach(p => {
-                productManagementList.innerHTML += `
-                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100">
-                        <div>
-                            <p class="font-medium">${p.name}</p>
-                            <p class="text-sm text-gray-500">${formatCurrency(p.price)} - Estoque: ${p.stock}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="openProductModal('${p.id}')" class="p-2 text-gray-500 hover:text-blue-600"><i data-lucide="edit"></i></button>
-                            <button onclick="deleteProduct('${p.id}')" class="p-2 text-gray-500 hover:text-red-600"><i data-lucide="trash-2"></i></button>
-                        </div>
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-2 rounded-lg hover:bg-gray-100";
+                item.innerHTML = `
+                    <div>
+                        <p class="font-medium">${p.name}</p>
+                        <p class="text-sm text-gray-500">${formatCurrency(p.price)} - Estoque: ${p.stock}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="openProductModal('${p.id}')" class="p-2 text-gray-500 hover:text-blue-600"><i data-lucide="edit"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="p-2 text-gray-500 hover:text-red-600"><i data-lucide="trash-2"></i></button>
                     </div>
                 `;
+                productManagementList.appendChild(item);
             });
 
             const categoryManagementList = document.getElementById('category-management-list');
@@ -1660,103 +1691,101 @@
         }
         
         // --- LÓGICA DO TOUR ---
+        let currentTourSteps = [];
         let currentTourStep = 0;
-        const tourSteps = [
-            {
-                element: '#product-list',
-                title: 'Vitrine de Produtos',
-                content: 'Aqui você vê seus produtos. Clique em um para adicionar ao carrinho de compras.',
-                position: 'bottom-start'
-            },
-            {
-                element: '#category-filters',
-                title: 'Filtros de Categoria',
-                content: 'Use os filtros para navegar rapidamente entre as categorias de produtos que você cadastrou.',
-                position: 'bottom-start'
-            },
-            {
-                element: '#cart-items',
-                title: 'Carrinho de Compras',
-                content: 'Seu pedido atual aparece aqui. Você pode ajustar as quantidades de cada item antes de finalizar.',
-                position: 'top'
-            },
-            {
-                element: '#btn-finalizar',
-                title: 'Finalizar Compra',
-                content: 'Quando o pedido estiver pronto, clique aqui para ir para a tela de pagamento.',
-                position: 'top'
-            },
-            {
-                element: '#header-icons',
-                title: 'Menu Principal',
-                content: 'Use estes ícones para ver o histórico de vendas, gerenciar o estoque e acessar as configurações da sua loja.',
-                position: 'bottom-end'
-            }
+
+        const mainTourSteps = [
+            { element: '#product-list', title: 'Vitrine de Produtos', content: 'Aqui você vê seus produtos. Clique em um para adicionar ao carrinho.'},
+            { element: '#category-filters', title: 'Filtros de Categoria', content: 'Use os filtros para navegar rapidamente entre as categorias.'},
+            { element: '#cart-items', title: 'Carrinho de Compras', content: 'Seu pedido atual aparece aqui. Você pode ajustar as quantidades de cada item.'},
+            { element: '#btn-finalizar', title: 'Finalizar Compra', content: 'Quando o pedido estiver pronto, clique aqui para ir para a tela de pagamento.'},
+            { element: '#header-icons', title: 'Menu Principal', content: 'Use estes ícones para ver o histórico de vendas, gerenciar o estoque e acessar as configurações.'}
         ];
 
-        function startTour() {
-            document.getElementById('tour-container').classList.remove('hidden');
+        const addProductTourSteps = [
+             { element: '#header-icons button[onclick="openSettingsModal()"]', title: 'Passo 1: Configurações', content: 'Para adicionar produtos, comece abrindo o painel de configurações.', preAction: closeAllModals },
+             { element: '#settings-modal button[onclick="openManagementModal()"]', title: 'Passo 2: Gerenciar Itens', content: 'Clique aqui para gerenciar seus produtos e categorias.', preAction: openSettingsModal },
+             { element: '#management-modal button[onclick="openCategoryModal()"]', title: 'Passo 3: Nova Categoria', content: 'É importante criar uma categoria ANTES de criar um produto. Clique em "Nova" para começar.', preAction: () => { closeSettingsModal(); openManagementModal(); } },
+             { element: '#category-modal', title: 'Passo 4: Dar um Nome', content: 'Digite um nome para sua categoria (ex: Bebidas, Lanches) e clique em "Salvar". Depois, feche esta janela para continuar.', preAction: () => { openCategoryModal(); } },
+             { element: '#management-modal button[onclick="openProductModal()"]', title: 'Passo 5: Adicionar Produto', content: 'Ótimo! Agora que você tem uma categoria, clique em "Novo" para adicionar seu primeiro produto.', preAction: () => { closeCategoryModal(); openManagementModal(); } },
+             { element: '#product-modal', title: 'Passo 6: Preencher os Detalhes', content: 'Preencha as informações do produto, selecione a categoria que você criou e clique em "Salvar".', preAction: () => { openProductModal(); } }
+        ];
+
+        function startTour(steps) {
+            closeAllModals();
+            currentTourSteps = steps;
             currentTourStep = 0;
+            document.getElementById('tour-container').classList.remove('hidden');
             showTourStep();
         }
+
+        function startMainTour() { startTour(mainTourSteps); }
+        function startAddProductTour() { startTour(addProductTourSteps); }
 
         function endTour() {
             const currentElement = document.querySelector('.tour-highlight');
             if (currentElement) currentElement.classList.remove('tour-highlight');
             document.getElementById('tour-container').classList.add('hidden');
+            closeAllModals();
         }
 
         function showTourStep() {
-            // Limpa o destaque anterior
             document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
 
-            const step = tourSteps[currentTourStep];
-            const targetElement = document.querySelector(step.element);
-            if (!targetElement) {
-                console.warn(`Elemento do tour não encontrado: ${step.element}`);
-                endTour();
-                return;
+            const step = currentTourSteps[currentTourStep];
+            if (!step) { endTour(); return; }
+
+            if (step.preAction) {
+                step.preAction();
             }
 
-            targetElement.classList.add('tour-highlight');
-            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => {
+                const targetElement = document.querySelector(step.element);
+                if (!targetElement) {
+                    console.warn(`Elemento do tour não encontrado: ${step.element}`);
+                    endTour();
+                    return;
+                }
+                
+                targetElement.classList.add('tour-highlight');
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            const tooltip = document.getElementById('tour-tooltip');
-            document.getElementById('tour-title').textContent = step.title;
-            document.getElementById('tour-content').textContent = step.content;
-            document.getElementById('tour-step').textContent = `${currentTourStep + 1} de ${tourSteps.length}`;
+                const tooltip = document.getElementById('tour-tooltip');
+                document.getElementById('tour-title').textContent = step.title;
+                document.getElementById('tour-content').textContent = step.content;
+                document.getElementById('tour-step').textContent = `${currentTourStep + 1} de ${currentTourSteps.length}`;
+                
+                const targetRect = targetElement.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+                
+                let top = targetRect.bottom + 10;
+                let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
 
-            // Posiciona o tooltip
-            const targetRect = targetElement.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
-            
-            let top, left;
-            switch(step.position) {
-                case 'bottom-start':
-                    top = targetRect.bottom + 10;
-                    left = targetRect.left;
-                    break;
-                case 'bottom-end':
-                    top = targetRect.bottom + 10;
-                    left = targetRect.right - tooltipRect.width;
-                    break;
-                case 'top':
+                if (top + tooltipRect.height > window.innerHeight) {
                     top = targetRect.top - tooltipRect.height - 10;
-                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
-                    break;
-                default: // bottom
-                    top = targetRect.bottom + 10;
-                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+                }
+
+                tooltip.style.top = `${top}px`;
+                tooltip.style.left = `${Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10))}px`;
+
+                document.getElementById('tour-prev').style.visibility = currentTourStep === 0 ? 'hidden' : 'visible';
+                document.getElementById('tour-next').style.display = currentTourStep === currentTourSteps.length - 1 ? 'none' : 'block';
+                document.getElementById('tour-finish').style.display = currentTourStep === currentTourSteps.length - 1 ? 'block' : 'none';
+            }, 200);
+        }
+        
+        function nextTourStep() {
+            if (currentTourStep < currentTourSteps.length - 1) {
+                currentTourStep++;
+                showTourStep();
             }
-            
-            tooltip.style.top = `${top}px`;
-            tooltip.style.left = `${Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10))}px`;
+        }
 
-
-            // Atualiza botões
-            document.getElementById('tour-prev').style.visibility = currentTourStep === 0 ? 'hidden' : 'visible';
-            document.getElementById('tour-next').style.display = currentTourStep === tourSteps.length - 1 ? 'none' : 'block';
-            document.getElementById('tour-finish').style.display = currentTourStep === tourSteps.length - 1 ? 'block' : 'none';
+        function prevTourStep() {
+            if (currentTourStep > 0) {
+                currentTourStep--;
+                showTourStep();
+            }
         }
         
         // --- INICIALIZAÇÃO COM FIREBASE ---
@@ -1833,6 +1862,17 @@
             });
         }
         
+        function closeAllModals() {
+            closeProductModal();
+            closeCategoryModal();
+            closeManagementModal();
+            closeSettingsModal();
+            closePaymentModal();
+            closeTabModal();
+            closeSubscriptionModal();
+            closeStripeModal();
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             initializeFirebaseApp();
@@ -1845,18 +1885,8 @@
             
             // --- EVENTOS DO TOUR ---
             document.getElementById('tour-overlay').addEventListener('click', endTour);
-            document.getElementById('tour-next').addEventListener('click', () => {
-                if (currentTourStep < tourSteps.length - 1) {
-                    currentTourStep++;
-                    showTourStep();
-                }
-            });
-            document.getElementById('tour-prev').addEventListener('click', () => {
-                 if (currentTourStep > 0) {
-                    currentTourStep--;
-                    showTourStep();
-                }
-            });
+            document.getElementById('tour-next').addEventListener('click', nextTourStep);
+            document.getElementById('tour-prev').addEventListener('click', prevTourStep);
             document.getElementById('tour-finish').addEventListener('click', endTour);
 
 
@@ -1920,4 +1950,5 @@
     </script>
 </body>
 </html>
+
 
