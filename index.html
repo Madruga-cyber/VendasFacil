@@ -1455,7 +1455,9 @@
             
             tabButtons.innerHTML = `
                 <button onclick="renderTabContent('vendas')" data-tab="vendas" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">Vendas</button>
-                <button onclick="renderTabContent('estoque')" data-tab="estoque" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">Estoque</button>`;
+                <button onclick="renderTabContent('estoque')" data-tab="estoque" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">Estoque</button>
+                <button onclick="renderTabContent('relatorios')" data-tab="relatorios" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">Relatórios</button>
+                `;
             
             document.querySelectorAll('.tab-btn').forEach(btn => btn.className = 'tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700');
             document.querySelector(`.tab-btn[data-tab="${tabName}"]`).className = 'tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium border-primary text-primary';
@@ -1528,6 +1530,32 @@
                         <td class="px-6 py-4 text-sm ${p.stock < 10 ? 'text-red-600 font-bold' : 'text-gray-900'}">${p.stock}</td>
                     </tr>`).join('')}
                     </tbody></table></div>`;
+            } else if (tabName === 'relatorios') {
+                title.textContent = 'Relatórios de Desempenho';
+                if (userState.subscription?.plan !== 'pro') {
+                    content.innerHTML = `
+                        <div class="text-center p-10 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                            <i data-lucide="bar-chart-2" class="w-16 h-16 mx-auto text-yellow-500 mb-4"></i>
+                            <h3 class="text-xl font-bold text-yellow-800">Relatórios Avançados</h3>
+                            <p class="text-yellow-700 mt-2 mb-4">Esta funcionalidade está disponível apenas no plano Pro.</p>
+                            <button onclick="openSubscriptionModal()" class="btn-primary px-6 py-2 rounded-lg">Fazer Upgrade</button>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } else {
+                    content.innerHTML = `
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-500">Faturamento Total</p><p id="report-total-revenue" class="text-2xl font-bold"></p></div>
+                            <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-500">Número de Vendas</p><p id="report-total-sales" class="text-2xl font-bold"></p></div>
+                            <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-500">Ticket Médio</p><p id="report-avg-ticket" class="text-2xl font-bold"></p></div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white p-4 rounded-lg shadow"><h4 class="font-bold mb-2">Faturamento Mensal</h4><canvas id="monthly-revenue-chart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg shadow"><h4 class="font-bold mb-2">Produtos Mais Vendidos</h4><canvas id="top-products-chart"></canvas></div>
+                        </div>
+                    `;
+                    generateReports();
+                }
             }
         }
         
@@ -1554,7 +1582,7 @@
         const planLimits = {
             gratuito: { products: 10, categories: 3, sales: 10, colors: true, ai: false },
             basico: { products: 50, categories: 10, sales: Infinity, colors: true, ai: false },
-            pro: { products: Infinity, categories: Infinity, sales: Infinity, colors: true, ai: true }
+            pro: { products: Infinity, categories: Infinity, sales: Infinity, colors: true, ai: true, reports: true }
         };
 
         function checkPlanLimit(feature) {
@@ -1568,6 +1596,7 @@
                 case 'sales': currentCount = state.salesHistory.length; break;
                 case 'colors':
                 case 'ai':
+                case 'reports':
                     if (!limit) {
                         showToast('Funcionalidade disponível apenas em planos superiores.', 'warning');
                         openSubscriptionModal();
