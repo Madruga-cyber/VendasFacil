@@ -784,6 +784,7 @@
             currentPaymentMethod: null,
             selectedProductId: null,
         };
+        let activeListeners = [];
 
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
 
@@ -1865,11 +1866,17 @@
             }
         }
         
+        function cleanupListeners() {
+            activeListeners.forEach(unsubscribe => unsubscribe());
+            activeListeners = [];
+        }
+
         // --- INICIALIZAÇÃO COM FIREBASE ---
         function initializeFirebaseApp() {
             const { auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = window.firebase;
             
             onAuthStateChanged(auth, user => {
+                cleanupListeners(); // Limpa listeners antigos ao mudar de usuário ou ao deslogar
                 if (user) {
                     userState.userId = user.uid;
                     setupSnapshots(user.uid);
@@ -1908,9 +1915,11 @@
             });
 
             document.getElementById('toggle-auth-mode').addEventListener('click', (e) => {
-                const isLogin = !document.getElementById('login-form').classList.contains('hidden');
-                document.getElementById('login-form').classList.toggle('hidden');
-                document.getElementById('signup-form').classList.toggle('hidden');
+                const loginForm = document.getElementById('login-form');
+                const signupForm = document.getElementById('signup-form');
+                const isLogin = !loginForm.classList.contains('hidden');
+                loginForm.classList.toggle('hidden');
+                signupForm.classList.toggle('hidden');
                 document.getElementById('auth-title').textContent = isLogin ? 'Crie sua conta para começar.' : 'Bem-vindo de volta! Faça o login.';
                 e.target.textContent = isLogin ? 'Já tem uma conta? Entre' : 'Não tem uma conta? Cadastre-se';
             });
@@ -1924,7 +1933,7 @@
             const { db, collection, onSnapshot, doc } = window.firebase;
             
             const userDocRef = doc(db, "users", userId);
-            onSnapshot(userDocRef, async (docSnap) => {
+            const unsubUser = onSnapshot(userDocRef, async (docSnap) => {
                  if (docSnap.exists() && docSnap.data().subscription) {
                     userState.subscription = docSnap.data().subscription;
                     document.getElementById('app').classList.remove('hidden');
@@ -1933,26 +1942,30 @@
                 }
                 document.getElementById('loading-overlay').classList.add('hidden');
             });
+            activeListeners.push(unsubUser);
 
-            onSnapshot(collection(db, "users", userId, "products"), (snapshot) => {
+            const unsubProducts = onSnapshot(collection(db, "users", userId, "products"), (snapshot) => {
                 state.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderProducts(); renderManagementLists();
             });
+            activeListeners.push(unsubProducts);
 
-            onSnapshot(collection(db, "users", userId, "categories"), (snapshot) => {
+            const unsubCategories = onSnapshot(collection(db, "users", userId, "categories"), (snapshot) => {
                 state.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderCategories(); renderManagementLists();
             });
+             activeListeners.push(unsubCategories);
 
-            onSnapshot(collection(db, "users", userId, "salesHistory"), (snapshot) => {
+            const unsubSales = onSnapshot(collection(db, "users", userId, "salesHistory"), (snapshot) => {
                 state.salesHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 if(!document.getElementById('tab-modal').classList.contains('hidden')) {
                     const activeTab = document.querySelector('.tab-btn.border-primary');
                     if(activeTab) renderTabContent(activeTab.dataset.tab);
                 }
             });
+            activeListeners.push(unsubSales);
 
-            onSnapshot(doc(db, "users", userId, "settings", "appConfig"), (docSnap) => {
+            const unsubSettings = onSnapshot(doc(db, "users", userId, "settings", "appConfig"), (docSnap) => {
                 if (docSnap.exists()) {
                     state.settings = { ...state.settings, ...docSnap.data() };
                 } else {
@@ -1961,6 +1974,7 @@
                 applySettings(); 
                 calculateTotals();
             });
+            activeListeners.push(unsubSettings);
         }
         
         function closeAllModals() {
