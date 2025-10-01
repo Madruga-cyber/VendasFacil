@@ -11,6 +11,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <!-- jsPDF e html2canvas para Geração de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -23,7 +26,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, writeBatch, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
         // Suas configurações do Firebase
         const firebaseConfig = { 
@@ -41,7 +44,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        window.firebase = { db, auth, collection, onSnapshot, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, signInAnonymously, onAuthStateChanged, writeBatch, getDocs, Timestamp };
+        window.firebase = { db, auth, collection, onSnapshot, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, writeBatch, getDocs, Timestamp, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut };
     </script>
 
     <style>
@@ -210,10 +213,49 @@
 </head>
 <body class="antialiased">
     
+    <!-- Tela de Autenticação -->
+    <div id="auth-container" class="hidden min-h-screen flex items-center justify-center bg-gray-100">
+        <div class="w-full max-w-md">
+            <div class="bg-white shadow-lg rounded-2xl p-8">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800">Vendas Fácil</h1>
+                    <p id="auth-title" class="text-gray-600 mt-2">Bem-vindo de volta! Faça o login.</p>
+                </div>
+                <!-- Formulário de Login -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="login-email" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-700">Senha</label>
+                        <input type="password" id="login-password" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary">
+                    </div>
+                    <button type="submit" class="w-full btn-primary font-bold py-2 rounded-lg">Entrar</button>
+                </form>
+                <!-- Formulário de Cadastro -->
+                <form id="signup-form" class="hidden space-y-4">
+                    <div>
+                        <label for="signup-email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="signup-email" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary">
+                    </div>
+                    <div>
+                        <label for="signup-password" class="block text-sm font-medium text-gray-700">Senha</label>
+                        <input type="password" id="signup-password" required minlength="6" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary">
+                    </div>
+                    <button type="submit" class="w-full btn-primary font-bold py-2 rounded-lg">Criar Conta</button>
+                </form>
+                <div class="text-center mt-6">
+                    <button id="toggle-auth-mode" class="text-sm text-secondary hover:underline">Não tem uma conta? Cadastre-se</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center z-[100] p-4">
         <i data-lucide="loader" class="animate-spin w-16 h-16 text-primary mb-4"></i>
-        <p class="text-lg text-gray-700">Carregando dados...</p>
+        <p class="text-lg text-gray-700">Carregando...</p>
     </div>
 
     <!-- Container da Aplicação (inicialmente oculto) -->
@@ -427,7 +469,7 @@
     <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] hidden">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
             <h2 class="text-xl font-bold mb-4">Configurações</h2>
-            <div class="space-y-6">
+            <div class="space-y-4">
                 <div>
                     <label for="settings-app-name" class="block text-sm font-medium text-gray-700">Nome da Loja</label>
                     <input type="text" id="settings-app-name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary">
@@ -455,6 +497,12 @@
                     <button onclick="openSubscriptionModal()" class="w-full text-left px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 flex justify-between items-center">
                         <span>Gerenciar Assinatura</span>
                         <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                 <div>
+                    <button id="logout-button" class="w-full text-left px-4 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex justify-between items-center">
+                        <span>Sair</span>
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
                     </button>
                 </div>
             </div>
@@ -1790,32 +1838,56 @@
         
         // --- INICIALIZAÇÃO COM FIREBASE ---
         function initializeFirebaseApp() {
-            const { auth, onAuthStateChanged, signInAnonymously } = window.firebase;
+            const { auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = window.firebase;
+            
             onAuthStateChanged(auth, user => {
                 if (user) {
                     userState.userId = user.uid;
                     setupSnapshots(user.uid);
+                    document.getElementById('auth-container').classList.add('hidden');
+                    document.getElementById('loading-overlay').classList.remove('hidden'); // Show loading while snapshots load
                 } else {
-                    signInAnonymously(auth).catch(error => {
-                        console.error("Falha ao autenticar:", error);
-                        const loadingOverlay = document.getElementById('loading-overlay');
-                        if (error.code === 'auth/configuration-not-found') {
-                            loadingOverlay.innerHTML = `
-                                <i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mb-4"></i>
-                                <p class="text-lg text-red-700 font-bold">Erro de Configuração do Firebase</p>
-                                <p class="text-gray-600 mt-2 text-center max-w-md">
-                                    Parece que o <strong>Login Anônimo</strong> não está ativado.<br><br>
-                                    1. Vá para o seu projeto no <strong>Firebase Console</strong>.<br>
-                                    2. No menu, clique em <strong>Authentication</strong>.<br>
-                                    3. Vá para a aba <strong>Sign-in method</strong> e ative o provedor <strong>Anônimo</strong>.
-                                </p>
-                            `;
-                            lucide.createIcons();
-                        } else {
-                            loadingOverlay.innerHTML = `<p class="text-red-500">Falha ao conectar. Verifique sua conexão e a configuração do Firebase.</p>`;
-                        }
-                    });
+                    userState.userId = null;
+                    userState.subscription = null;
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    document.getElementById('app').classList.add('hidden');
+                    document.getElementById('auth-container').classList.remove('hidden');
                 }
+            });
+
+            // Lógica dos formulários de login/cadastro
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } catch (error) {
+                    showToast(getAuthErrorMessage(error), 'error');
+                }
+            });
+
+            document.getElementById('signup-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+                try {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } catch (error) {
+                    showToast(getAuthErrorMessage(error), 'error');
+                }
+            });
+
+            document.getElementById('toggle-auth-mode').addEventListener('click', (e) => {
+                const isLogin = !document.getElementById('login-form').classList.contains('hidden');
+                document.getElementById('login-form').classList.toggle('hidden');
+                document.getElementById('signup-form').classList.toggle('hidden');
+                document.getElementById('auth-title').textContent = isLogin ? 'Crie sua conta para começar.' : 'Bem-vindo de volta! Faça o login.';
+                e.target.textContent = isLogin ? 'Já tem uma conta? Entre' : 'Não tem uma conta? Cadastre-se';
+            });
+
+            document.getElementById('logout-button').addEventListener('click', () => {
+                signOut(auth);
             });
         }
 
@@ -1863,16 +1935,29 @@
         }
         
         function closeAllModals() {
-            closeProductModal();
-            closeCategoryModal();
-            closeManagementModal();
-            closeSettingsModal();
-            closePaymentModal();
-            closeTabModal();
-            closeSubscriptionModal();
-            closeStripeModal();
+            document.querySelectorAll('.fixed.inset-0').forEach(modal => {
+                if(modal.id !== 'loading-overlay' && modal.id !== 'auth-container' && modal.id !== 'app' && modal.id !== 'toast-notification' && modal.id !== 'tour-container') {
+                    modal.classList.add('hidden');
+                }
+            });
         }
 
+        function getAuthErrorMessage(error) {
+            switch(error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    return 'E-mail ou senha inválidos.';
+                case 'auth/email-already-in-use':
+                    return 'Este e-mail já está em uso.';
+                case 'auth/weak-password':
+                    return 'Sua senha deve ter pelo menos 6 caracteres.';
+                case 'auth/invalid-email':
+                    return 'Por favor, insira um e-mail válido.';
+                default:
+                    return 'Ocorreu um erro. Tente novamente.';
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             initializeFirebaseApp();
@@ -1950,5 +2035,4 @@
     </script>
 </body>
 </html>
-
 
